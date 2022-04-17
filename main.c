@@ -38,7 +38,34 @@ void SysTick_Handler(void){
 	sprintf(time, "%d%d|%d%d|%d%d", ht,hu,mnt,mnu,st,su);
 	DisplayString(time);
 	
+	// Trigger alarm when new minute
+	if (su == 00) {
+		// Turn on LED
+		GPIOA->ODR |= 1UL << 5; // Turn on LED via output 1
+	} else {
+		// Turn off LED
+		GPIOA->ODR &= ~(1UL << 5); // Turn off LED via output 0
+	}
 }
+
+/*
+void RTC_Alarm_IRQHandler(void) {
+	// Check if LED should be on
+	uint32_t su = 0xF & RTC_TIME_GetSecond();
+	
+	if (su == 00) {
+		// Turn on LED
+		GPIOA->ODR |= 1UL << 5; // Turn on LED via output 1
+	} else {
+		// Turn off LED
+		GPIOA->ODR &= ~(1UL << 5); // Turn off LED via output 0
+	}
+	
+	// Clear flags
+	RTC->ISR &= ~(RTC_ISR_ALRAF);
+	RTC->ISR &= ~(RTC_ISR_ALRBF);
+}
+*/
 
 void RTC_Setup(void){
 	//RTC SETUP
@@ -55,7 +82,7 @@ void RTC_Setup(void){
 	
 	
 	//Set RTC
-	RTC_Set_Time(0x1, 0x13, 0x59, 0x30); 
+	RTC_Set_Time(0x1, 0x13, 0x59, 0x50); 
 	
 	//Close up shop
 	RTC->ISR &= ~RTC_ISR_INIT;
@@ -85,7 +112,49 @@ void SysTick_Setup(void){
 
 }
 	
+/*
+// Function to handle setting an alarm
+void Alarm_Setup(void) {
+	// Step 1: Disable write protection
+	RTC_Disable_Write_Protection();
+	
+	// Step 2: Disable alarm A & B
+	RTC->CR |= ~(RTC_CR_ALRAE);
+	RTC->CR |= ~(RTC_CR_ALRBE);
+	
+	// Step 3: Wait for ALRMAR and ALRMBR to be editable
+	while ((RTC->ISR & RTC_ISR_ALRAWF) > 0) {
+		// Do nothing
+	}
+	while ((RTC->ISR & RTC_ISR_ALRBWF) > 0) {
+		// Do nothing
+	}
+	
+	// Step 4: Configure alarm
+	// Set alarm A to trigger on every minute (when seconds are 00)
+	RTC->ALRMAR = 0xC0808000;
+	// Set alarm B to trigger 1 second after alarm A (when seconds are 01)
+	RTC->ALRMBR = 0xC0808001;
+	
+	// Step 5: Re-enable alarm A and B
+	RTC->CR |= RTC_CR_ALRAE;
+	RTC->CR |= RTC_CR_ALRBE;
+	
+	// Step 6: Enable write protection
+	RTC_Enable_Write_Protection();
+	
+	// Enable interrupts
+	
+}
 
+*/
+void GPIO_Setup(void) {
+	// Configure PA5
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN; // Enable clock of Port A
+	GPIOA->MODER &= ~(3UL<<10);          // Clear mode bits
+	GPIOA->MODER |= 1UL<<10;             // Set mode to output
+	GPIOA->OTYPER &= ~(1UL<<5);          // Select push-pull output
+}
 	
 
 int main(void){
@@ -116,6 +185,8 @@ int main(void){
 	ssd1306_Init();
 	RTC_Setup();
 	SysTick_Setup();
+	GPIO_Setup();
+	//Alarm_Setup();
 	
 	
 	
